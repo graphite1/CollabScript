@@ -52,11 +52,18 @@
   function normalizeGenba(item) {
     const rawName = typeof item?.name === 'string' ? item.name.trim() : '';
     return {
-      name: isValidGenbaName(rawName) ? rawName : `案件 ${item?.gid || ''}`.trim(),
+      name: isValidGenbaName(rawName) ? rawName : '',
       gid: String(item?.gid || item?.id || '').trim(),
       gkid: String(item?.gkid || '').trim(),
       lastUsedAt: Number(item?.lastUsedAt || 0)
     };
+  }
+
+  function getDisplayGenbaName(item) {
+    if (isValidGenbaName(item?.name || '')) {
+      return item.name;
+    }
+    return `案件 ${item?.gid || ''}`.trim();
   }
 
   function saveGenbaList(list) {
@@ -320,7 +327,7 @@
     sortGenbaList(list).forEach(item => {
       const option = document.createElement('option');
       option.value = getGenbaKey(item);
-      option.textContent = item.name;
+      option.textContent = getDisplayGenbaName(item);
       option.dataset.gid = item.gid;
       option.dataset.gkid = item.gkid;
       select.appendChild(option);

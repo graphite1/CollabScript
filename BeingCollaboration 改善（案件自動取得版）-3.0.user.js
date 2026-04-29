@@ -1,8 +1,8 @@
-// ==UserScript==
-// @name         BeingCollaboration 操作改善
+﻿// ==UserScript==
+// @name         BeingCollaboration 謫堺ｽ懈隼蝟・
 // @namespace    local.be-collabo-helper
 // @version      3.3
-// @description  BeingCollaboration の操作性を改善する補助スクリプト
+// @description  BeingCollaboration 縺ｮ謫堺ｽ懈ｧ繧呈隼蝟・☆繧玖｣懷勧繧ｹ繧ｯ繝ｪ繝励ヨ
 // @match        https://www.be-collabo.jp/*
 // @match        https://be-collabo.jp/*
 // @run-at       document-end
@@ -47,7 +47,7 @@
 
   function normalizeGenba(item) {
     return {
-      name: typeof item?.name === 'string' && item.name.trim() ? item.name.trim() : `案件 ${item?.gid || ''}`.trim(),
+      name: typeof item?.name === 'string' && item.name.trim() ? item.name.trim() : `譯井ｻｶ ${item?.gid || ''}`.trim(),
       gid: String(item?.gid || item?.id || '').trim(),
       gkid: String(item?.gkid || '').trim(),
       lastUsedAt: Number(item?.lastUsedAt || 0)
@@ -95,10 +95,27 @@
   function parseGenbaFromHref(href, fallbackName) {
     try {
       const url = new URL(href, location.href);
+      const path = (url.pathname || '').toLowerCase();
+      const hash = (url.hash || '').toLowerCase();
+      const rawHref = String(href || '').trim().toLowerCase();
+
+      if (!rawHref || rawHref.startsWith('javascript:')) {
+        return null;
+      }
+      if (rawHref.startsWith('#') || hash === '#pagetop' || rawHref.includes('#pagetop')) {
+        return null;
+      }
+      if (path.includes('/logout') || path.includes('/login')) {
+        return null;
+      }
+      if (!path.includes('/genbatoppage/g_toppage.php')) {
+        return null;
+      }
+
       const gid = getParamValue(url.searchParams, PARAM_NAME_MAP.gid);
       const gkid = getParamValue(url.searchParams, PARAM_NAME_MAP.gkid);
 
-      if (!gid) {
+      if (!gid || !gkid) {
         return null;
       }
 
@@ -241,7 +258,7 @@
 
     const first = document.createElement('option');
     first.value = '';
-    first.textContent = list.length ? '案件選択' : '案件未取得';
+    first.textContent = list.length ? '譯井ｻｶ驕ｸ謚・ : '譯井ｻｶ譛ｪ蜿門ｾ・;
     select.appendChild(first);
 
     sortGenbaList(list).forEach(item => {
@@ -308,19 +325,19 @@
       flex-wrap: wrap;
     `;
 
-    bar.appendChild(createButton('トップ', () => {
+    bar.appendChild(createButton('繝医ャ繝・, () => {
       location.href = '/akjssys/main.php?log=on';
     }));
-    bar.appendChild(createButton('処理一覧', () => {
+    bar.appendChild(createButton('蜃ｦ逅・ｸ隕ｧ', () => {
       location.href = '/akjssys/workflow/wftop.php?actioncode=2001';
     }));
-    bar.appendChild(createButton('新規起案', () => {
+    bar.appendChild(createButton('譁ｰ隕剰ｵｷ譯・, () => {
       location.href = '/akjssys/circular/circularTop.php?actioncode=3001';
     }));
-    bar.appendChild(createButton('帳票状況', () => {
+    bar.appendChild(createButton('蟶ｳ逾ｨ迥ｶ豕・, () => {
       location.href = '/akjssys/circular/circularTop.php?actioncode=3200&kannimenu=2';
     }));
-    bar.appendChild(createButton('検索', () => {
+    bar.appendChild(createButton('讀懃ｴ｢', () => {
       location.href = '/akjssys/circular/circularTop.php?resetFlg=1&actioncode=3400';
     }));
 
@@ -343,7 +360,7 @@
       const gkid = option.dataset.gkid || '';
 
       if (!gkid) {
-        alert('gkid がない案件のため遷移できません。');
+        alert('gkid 縺後↑縺・｡井ｻｶ縺ｮ縺溘ａ驕ｷ遘ｻ縺ｧ縺阪∪縺帙ｓ縲・);
         select.value = '';
         return;
       }
@@ -353,9 +370,9 @@
     });
     bar.appendChild(select);
 
-    const clearButton = createButton('案件リセット', () => {
+    const clearButton = createButton('譯井ｻｶ繝ｪ繧ｻ繝・ヨ', () => {
       localStorage.removeItem(STORAGE_KEY);
-      alert('保存した案件リストをリセットしました。ページ再読込後に再取得されます。');
+      alert('菫晏ｭ倥＠縺滓｡井ｻｶ繝ｪ繧ｹ繝医ｒ繝ｪ繧ｻ繝・ヨ縺励∪縺励◆縲ゅ・繝ｼ繧ｸ蜀崎ｪｭ霎ｼ蠕後↓蜀榊叙蠕励＆繧後∪縺吶・);
       location.reload();
     }, `
       padding: 6px 10px;
@@ -368,7 +385,7 @@
     `);
     bar.appendChild(clearButton);
 
-    bar.appendChild(createButton('印刷', () => {
+    bar.appendChild(createButton('蜊ｰ蛻ｷ', () => {
       window.print();
     }));
 
@@ -376,7 +393,7 @@
     document.body.style.paddingTop = '56px';
 
     const badge = document.createElement('div');
-    badge.textContent = `改善ON / 案件${genbaList.length}件`;
+    badge.textContent = `謾ｹ蝟ОN / 譯井ｻｶ${genbaList.length}莉ｶ`;
     badge.style.cssText = `
       position: fixed;
       right: 12px;
@@ -393,3 +410,4 @@
 
   init();
 })();
+

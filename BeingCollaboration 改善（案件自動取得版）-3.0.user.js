@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         BeingCollaboration 操作改善
 // @namespace    local.be-collabo-helper
-// @version      3.4
+// @version      3.5
 // @description  BeingCollaboration の操作性を改善する補助スクリプト
 // @match        https://www.be-collabo.jp/*
 // @match        https://be-collabo.jp/*

@@ -1,8 +1,8 @@
 ﻿// ==UserScript==
-// @name         BeingCollaboration 謫堺ｽ懈隼蝟・
+// @name         BeingCollaboration 操作改善
 // @namespace    local.be-collabo-helper
-// @version      3.3
-// @description  BeingCollaboration 縺ｮ謫堺ｽ懈ｧ繧呈隼蝟・☆繧玖｣懷勧繧ｹ繧ｯ繝ｪ繝励ヨ
+// @version      3.4
+// @description  BeingCollaboration の操作性を改善する補助スクリプト
 // @match        https://www.be-collabo.jp/*
 // @match        https://be-collabo.jp/*
 // @run-at       document-end
@@ -47,7 +47,7 @@
 
   function normalizeGenba(item) {
     return {
-      name: typeof item?.name === 'string' && item.name.trim() ? item.name.trim() : `譯井ｻｶ ${item?.gid || ''}`.trim(),
+      name: typeof item?.name === 'string' && item.name.trim() ? item.name.trim() : `案件 ${item?.gid || ''}`.trim(),
       gid: String(item?.gid || item?.id || '').trim(),
       gkid: String(item?.gkid || '').trim(),
       lastUsedAt: Number(item?.lastUsedAt || 0)
@@ -258,7 +258,7 @@
 
     const first = document.createElement('option');
     first.value = '';
-    first.textContent = list.length ? '譯井ｻｶ驕ｸ謚・ : '譯井ｻｶ譛ｪ蜿門ｾ・;
+    first.textContent = list.length ? '案件選択' : '案件未取得';
     select.appendChild(first);
 
     sortGenbaList(list).forEach(item => {
@@ -325,19 +325,19 @@
       flex-wrap: wrap;
     `;
 
-    bar.appendChild(createButton('繝医ャ繝・, () => {
+    bar.appendChild(createButton('トップ', () => {
       location.href = '/akjssys/main.php?log=on';
     }));
-    bar.appendChild(createButton('蜃ｦ逅・ｸ隕ｧ', () => {
+    bar.appendChild(createButton('処理一覧', () => {
       location.href = '/akjssys/workflow/wftop.php?actioncode=2001';
     }));
-    bar.appendChild(createButton('譁ｰ隕剰ｵｷ譯・, () => {
+    bar.appendChild(createButton('新規起案', () => {
       location.href = '/akjssys/circular/circularTop.php?actioncode=3001';
     }));
-    bar.appendChild(createButton('蟶ｳ逾ｨ迥ｶ豕・, () => {
+    bar.appendChild(createButton('帳票状況', () => {
       location.href = '/akjssys/circular/circularTop.php?actioncode=3200&kannimenu=2';
     }));
-    bar.appendChild(createButton('讀懃ｴ｢', () => {
+    bar.appendChild(createButton('検索', () => {
       location.href = '/akjssys/circular/circularTop.php?resetFlg=1&actioncode=3400';
     }));
 
@@ -360,7 +360,7 @@
       const gkid = option.dataset.gkid || '';
 
       if (!gkid) {
-        alert('gkid 縺後↑縺・｡井ｻｶ縺ｮ縺溘ａ驕ｷ遘ｻ縺ｧ縺阪∪縺帙ｓ縲・);
+        alert('gkid がない案件のため遷移できません。');
         select.value = '';
         return;
       }
@@ -370,9 +370,9 @@
     });
     bar.appendChild(select);
 
-    const clearButton = createButton('譯井ｻｶ繝ｪ繧ｻ繝・ヨ', () => {
+    const clearButton = createButton('案件リセット', () => {
       localStorage.removeItem(STORAGE_KEY);
-      alert('菫晏ｭ倥＠縺滓｡井ｻｶ繝ｪ繧ｹ繝医ｒ繝ｪ繧ｻ繝・ヨ縺励∪縺励◆縲ゅ・繝ｼ繧ｸ蜀崎ｪｭ霎ｼ蠕後↓蜀榊叙蠕励＆繧後∪縺吶・);
+      alert('保存した案件リストをリセットしました。ページ再読込後に再取得されます。');
       location.reload();
     }, `
       padding: 6px 10px;
@@ -385,7 +385,7 @@
     `);
     bar.appendChild(clearButton);
 
-    bar.appendChild(createButton('蜊ｰ蛻ｷ', () => {
+    bar.appendChild(createButton('印刷', () => {
       window.print();
     }));
 
@@ -393,7 +393,7 @@
     document.body.style.paddingTop = '56px';
 
     const badge = document.createElement('div');
-    badge.textContent = `謾ｹ蝟ОN / 譯井ｻｶ${genbaList.length}莉ｶ`;
+    badge.textContent = `改善ON / 案件${genbaList.length}件`;
     badge.style.cssText = `
       position: fixed;
       right: 12px;
@@ -410,4 +410,3 @@
 
   init();
 })();
-

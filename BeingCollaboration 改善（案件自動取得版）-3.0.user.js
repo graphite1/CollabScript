@@ -18,6 +18,12 @@
     gid: ['gid', 'gID', 'genbaID', 'genba_id'],
     gkid: ['gkid', 'gkID', 'genbaKID', 'genba_kid']
   };
+  const INVALID_GENBA_NAMES = new Set([
+    'このページのトップへ',
+    'ページトップへ',
+    'トップへ',
+    'TOP'
+  ]);
 
   function loadGenbaList() {
     try {
@@ -70,6 +76,17 @@
     return '';
   }
 
+  function isValidGenbaName(name) {
+    if (typeof name !== 'string') {
+      return false;
+    }
+    const trimmed = name.trim();
+    if (!trimmed) {
+      return false;
+    }
+    return !INVALID_GENBA_NAMES.has(trimmed);
+  }
+
   function parseGenbaFromHref(href, fallbackName) {
     try {
       const url = new URL(href, location.href);
@@ -81,7 +98,7 @@
       }
 
       return normalizeGenba({
-        name: fallbackName,
+        name: isValidGenbaName(fallbackName) ? fallbackName : '',
         gid,
         gkid
       });
@@ -109,7 +126,7 @@
 
       map.set(key, {
         ...existing,
-        name: normalized.name || existing.name,
+        name: isValidGenbaName(normalized.name) ? normalized.name : existing.name,
         gid: normalized.gid || existing.gid,
         gkid: normalized.gkid || existing.gkid,
         lastUsedAt: Math.max(existing.lastUsedAt || 0, normalized.lastUsedAt || 0),

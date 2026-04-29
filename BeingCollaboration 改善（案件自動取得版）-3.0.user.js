@@ -13,6 +13,7 @@
   'use strict';
 
   const STORAGE_KEY = 'bc_genba_list';
+  const DEBUG_FLAG_KEY = 'bc_debug_scrape';
   const TOPPAGE_PATH = '/akjssys/genbatoppage/g_toppage.php';
   const PARAM_NAME_MAP = {
     gid: ['gid', 'gID', 'genbaID', 'genba_id'],
@@ -24,6 +25,14 @@
     'トップへ',
     'TOP'
   ]);
+  const DEBUG_SCRAPE = localStorage.getItem(DEBUG_FLAG_KEY) === '1';
+
+  function debugLog(...args) {
+    if (!DEBUG_SCRAPE) {
+      return;
+    }
+    console.log('[BC_DEBUG]', ...args);
+  }
 
   function loadGenbaList() {
     try {
@@ -41,8 +50,7 @@
       name: typeof item?.name === 'string' && item.name.trim() ? item.name.trim() : `案件 ${item?.gid || ''}`.trim(),
       gid: String(item?.gid || item?.id || '').trim(),
       gkid: String(item?.gkid || '').trim(),
-      lastUsedAt: Number(item?.lastUsedAt || 0),
-      pinned: Boolean(item?.pinned)
+      lastUsedAt: Number(item?.lastUsedAt || 0)
     };
   }
 
@@ -56,9 +64,6 @@
 
   function sortGenbaList(list) {
     return [...list].sort((a, b) => {
-      if (a.pinned !== b.pinned) {
-        return a.pinned ? -1 : 1;
-      }
       if (a.lastUsedAt !== b.lastUsedAt) {
         return b.lastUsedAt - a.lastUsedAt;
       }
@@ -129,8 +134,7 @@
         name: isValidGenbaName(normalized.name) ? normalized.name : existing.name,
         gid: normalized.gid || existing.gid,
         gkid: normalized.gkid || existing.gkid,
-        lastUsedAt: Math.max(existing.lastUsedAt || 0, normalized.lastUsedAt || 0),
-        pinned: existing.pinned || normalized.pinned
+        lastUsedAt: Math.max(existing.lastUsedAt || 0, normalized.lastUsedAt || 0)
       });
     });
 
@@ -140,11 +144,25 @@
   function collectGenbaFromPage() {
     const current = loadGenbaList();
     const found = [];
+    const debugCandidates = [];
 
     document.querySelectorAll('a[href]').forEach(anchor => {
       const href = anchor.getAttribute('href') || '';
       const name = (anchor.textContent || '').trim();
       const item = parseGenbaFromHref(href, name);
+      const isCandidate = Boolean(item);
+      const isNameValid = isValidGenbaName(name);
+
+      if (DEBUG_SCRAPE && (isCandidate || !isNameValid)) {
+        debugCandidates.push({
+          text: name,
+          href,
+          gid: item?.gid || '',
+          gkid: item?.gkid || '',
+          isCandidate,
+          isNameValid
+        });
+      }
 
       if (!item) {
         return;
@@ -155,6 +173,12 @@
 
     const list = mergeGenbaList(current, found);
     saveGenbaList(list);
+    debugLog('collectGenbaFromPage', {
+      page: location.href,
+      foundCount: found.length,
+      storedCount: list.length,
+      debugCandidates
+    });
     return list;
   }
 
@@ -178,34 +202,6 @@
         lastUsedAt: Date.now()
       };
     });
-    const sorted = sortGenbaList(next);
-    saveGenbaList(sorted);
-    return sorted;
-  }
-
-  function togglePinned(gid, gkid) {
-    if (!gid) {
-      return loadGenbaList();
-    }
-
-    const targetKey = `${String(gkid || '').trim()}:${String(gid).trim()}`;
-    const current = loadGenbaList();
-    let updated = false;
-    const next = current.map(item => {
-      if (getGenbaKey(item) !== targetKey) {
-        return item;
-      }
-      updated = true;
-      return {
-        ...item,
-        pinned: !item.pinned
-      };
-    });
-
-    if (!updated) {
-      return current;
-    }
-
     const sorted = sortGenbaList(next);
     saveGenbaList(sorted);
     return sorted;
@@ -251,7 +247,7 @@
     sortGenbaList(list).forEach(item => {
       const option = document.createElement('option');
       option.value = getGenbaKey(item);
-      option.textContent = `${item.pinned ? '★ ' : ''}${item.name}`;
+      option.textContent = item.name;
       option.dataset.gid = item.gid;
       option.dataset.gkid = item.gkid;
       select.appendChild(option);
@@ -286,6 +282,12 @@
 
     updateCurrentGenbaUsage();
     let genbaList = collectGenbaFromPage();
+    debugLog('init', {
+      page: location.href,
+      title: document.title,
+      genbaListCount: genbaList.length,
+      debugEnabled: DEBUG_SCRAPE
+    });
 
     const bar = document.createElement('div');
     bar.id = 'bc-fixed-toolbar';
@@ -350,30 +352,6 @@
       location.href = `${TOPPAGE_PATH}?gkid=${encodeURIComponent(gkid)}&gid=${encodeURIComponent(gid)}`;
     });
     bar.appendChild(select);
-
-    const pinButton = createButton('ピン切替', () => {
-      const option = select.selectedOptions[0];
-      const currentGenba = getCurrentGenbaFromLocation();
-      const gid = option?.dataset.gid || currentGenba?.gid || '';
-      const gkid = option?.dataset.gkid || currentGenba?.gkid || '';
-
-      if (!gid) {
-        alert('ピン留め対象の案件がありません。');
-        return;
-      }
-
-      genbaList = togglePinned(gid, gkid);
-      refreshSelectOptions(select, genbaList);
-    }, `
-      padding: 6px 10px;
-      border: 0;
-      border-radius: 6px;
-      background: #ffb300;
-      color: #222;
-      cursor: pointer;
-      font-weight: bold;
-    `);
-    bar.appendChild(pinButton);
 
     const clearButton = createButton('案件リセット', () => {
       localStorage.removeItem(STORAGE_KEY);

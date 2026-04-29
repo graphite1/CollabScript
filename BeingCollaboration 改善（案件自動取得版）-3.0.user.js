@@ -23,9 +23,11 @@
     'このページのトップへ',
     'ページトップへ',
     'トップへ',
-    'TOP'
+    'TOP',
+    'BeingCollaboration'
   ]);
   const DEBUG_SCRAPE = localStorage.getItem(DEBUG_FLAG_KEY) === '1';
+  const PREFETCH_CONCURRENCY = 3;
 
   function debugLog(...args) {
     if (!DEBUG_SCRAPE) {
@@ -200,7 +202,8 @@
   }
 
   function getCurrentGenbaFromLocation() {
-    return parseGenbaFromHref(location.href, document.title.trim());
+    // location 由来の名前は汎用タイトルを拾いやすいため、名前での上書きをしない
+    return parseGenbaFromHref(location.href, '');
   }
 
   function updateLastUsedAt(gid, gkid) {
@@ -250,6 +253,56 @@
     `;
     button.addEventListener('click', onClick);
     return button;
+  }
+
+  function buildGenbaTopUrl(gid, gkid) {
+    return `${TOPPAGE_PATH}?gkid=${encodeURIComponent(gkid)}&gid=${encodeURIComponent(gid)}`;
+  }
+
+  async function prefetchGenbaPages(list, onProgress, shouldStop) {
+    const queue = sortGenbaList(list)
+      .filter(item => item.gid && item.gkid)
+      .map(item => ({
+        key: getGenbaKey(item),
+        name: item.name,
+        url: buildGenbaTopUrl(item.gid, item.gkid)
+      }));
+
+    let done = 0;
+    let ok = 0;
+    let ng = 0;
+    let cursor = 0;
+
+    async function worker() {
+      while (cursor < queue.length) {
+        if (shouldStop()) {
+          return;
+        }
+        const idx = cursor++;
+        const target = queue[idx];
+        try {
+          await fetch(target.url, {
+            method: 'GET',
+            credentials: 'include',
+            cache: 'force-cache'
+          });
+          ok += 1;
+        } catch {
+          ng += 1;
+        } finally {
+          done += 1;
+          onProgress({ done, total: queue.length, ok, ng, current: target.name });
+        }
+      }
+    }
+
+    const workers = [];
+    const workerCount = Math.min(PREFETCH_CONCURRENCY, Math.max(queue.length, 1));
+    for (let i = 0; i < workerCount; i += 1) {
+      workers.push(worker());
+    }
+    await Promise.all(workers);
+    return { total: queue.length, done, ok, ng };
   }
 
   function refreshSelectOptions(select, list) {
@@ -349,11 +402,21 @@
       max-width: 260px;
     `;
     refreshSelectOptions(select, genbaList);
+    let stopPrefetch = false;
 
-    select.addEventListener('change', () => {
+    const prefetchStatus = document.createElement('span');
+    prefetchStatus.style.cssText = 'font-size:12px;color:#ddd;min-width:180px;';
+    prefetchStatus.textContent = '先読み: 未実行';
+
+    function setPrefetchStatus(text) {
+      prefetchStatus.textContent = `先読み: ${text}`;
+    }
+
+    function moveToSelectedGenba() {
       const option = select.selectedOptions[0];
       if (!option || !option.dataset.gid) {
-        return;
+        alert('案件を選択してください。');
+        return false;
       }
 
       const gid = option.dataset.gid;
@@ -362,13 +425,62 @@
       if (!gkid) {
         alert('gkid がない案件のため遷移できません。');
         select.value = '';
-        return;
+        return false;
       }
 
       genbaList = updateLastUsedAt(gid, gkid);
-      location.href = `${TOPPAGE_PATH}?gkid=${encodeURIComponent(gkid)}&gid=${encodeURIComponent(gid)}`;
+      location.href = buildGenbaTopUrl(gid, gkid);
+      return true;
+    }
+
+    select.addEventListener('change', () => {
+      // 選択時点では遷移しない（誤操作によるリロード抑制）
     });
     bar.appendChild(select);
+
+    bar.appendChild(createButton('移動', () => {
+      moveToSelectedGenba();
+    }));
+
+    bar.appendChild(createButton('先読み開始', async () => {
+      stopPrefetch = false;
+      setPrefetchStatus('開始中...');
+      const result = await prefetchGenbaPages(
+        genbaList,
+        progress => {
+          setPrefetchStatus(`${progress.done}/${progress.total} (${progress.ok}成功/${progress.ng}失敗)`);
+        },
+        () => stopPrefetch
+      );
+      if (stopPrefetch) {
+        setPrefetchStatus(`停止 (${result.done}/${result.total})`);
+        return;
+      }
+      setPrefetchStatus(`完了 (${result.ok}成功/${result.ng}失敗)`);
+    }, `
+      padding: 6px 10px;
+      border: 0;
+      border-radius: 6px;
+      background: #2f7d32;
+      color: #fff;
+      cursor: pointer;
+      font-weight: bold;
+    `));
+
+    bar.appendChild(createButton('先読み停止', () => {
+      stopPrefetch = true;
+      setPrefetchStatus('停止要求');
+    }, `
+      padding: 6px 10px;
+      border: 0;
+      border-radius: 6px;
+      background: #8a1f1f;
+      color: #fff;
+      cursor: pointer;
+      font-weight: bold;
+    `));
+
+    bar.appendChild(prefetchStatus);
 
     const clearButton = createButton('案件リセット', () => {
       localStorage.removeItem(STORAGE_KEY);

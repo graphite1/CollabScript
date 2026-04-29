@@ -22,12 +22,14 @@
   const INVALID_GENBA_NAMES = new Set([
     'このページのトップへ',
     'ページトップへ',
+    'トップページ',
     'トップへ',
     'TOP',
     'BeingCollaboration'
   ]);
   const DEBUG_SCRAPE = localStorage.getItem(DEBUG_FLAG_KEY) === '1';
   const PREFETCH_CONCURRENCY = 3;
+  const AUTO_PREFETCH_DELAY_MS = 1200;
 
   function debugLog(...args) {
     if (!DEBUG_SCRAPE) {
@@ -48,8 +50,9 @@
   }
 
   function normalizeGenba(item) {
+    const rawName = typeof item?.name === 'string' ? item.name.trim() : '';
     return {
-      name: typeof item?.name === 'string' && item.name.trim() ? item.name.trim() : `案件 ${item?.gid || ''}`.trim(),
+      name: isValidGenbaName(rawName) ? rawName : `案件 ${item?.gid || ''}`.trim(),
       gid: String(item?.gid || item?.id || '').trim(),
       gkid: String(item?.gkid || '').trim(),
       lastUsedAt: Number(item?.lastUsedAt || 0)
@@ -442,7 +445,7 @@
       moveToSelectedGenba();
     }));
 
-    bar.appendChild(createButton('先読み開始', async () => {
+    async function runPrefetch() {
       stopPrefetch = false;
       setPrefetchStatus('開始中...');
       const result = await prefetchGenbaPages(
@@ -454,9 +457,14 @@
       );
       if (stopPrefetch) {
         setPrefetchStatus(`停止 (${result.done}/${result.total})`);
-        return;
+        return false;
       }
       setPrefetchStatus(`完了 (${result.ok}成功/${result.ng}失敗)`);
+      return true;
+    }
+
+    bar.appendChild(createButton('先読み開始', async () => {
+      await runPrefetch();
     }, `
       padding: 6px 10px;
       border: 0;
@@ -518,6 +526,11 @@
       font-size: 12px;
     `;
     document.body.appendChild(badge);
+
+    // 毎回ボタンを押さずに済むよう、表示直後に自動先読みする
+    setTimeout(() => {
+      runPrefetch();
+    }, AUTO_PREFETCH_DELAY_MS);
   }
 
   init();
